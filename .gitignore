@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Raw datasets and generated outputs
+data/raw/
+data/processed/
+outputs/features/
+outputs/models/
+
+# Large model files
+*.pt
+*.pth
+*.h5
+
+# Editor and OS
+.vscode/
+.DS_Store
+Thumbs.db
