@@ -7,6 +7,7 @@ import pandas as pd
 from preprocessing import preprocess_audio
 from time_features import extract_time_features
 from spectral_features import extract_spectral_features
+from wavelet_features import extract_wavelet_features
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -33,8 +34,9 @@ def aggregate_features(features: dict) -> dict:
     return aggregated
 
 
+
 def extract_recording_features(file_path: Path) -> dict:
-    """Extract aggregated time-domain and spectral features."""
+    """Extract the complete handcrafted audio representation."""
 
     audio, sr = preprocess_audio(
         file_path,
@@ -42,24 +44,37 @@ def extract_recording_features(file_path: Path) -> dict:
         trim=True,
     )
 
+    # Frame-level time-domain features
     time_features = extract_time_features(audio)
 
+    # Frame-level spectral features
     spectral_features = extract_spectral_features(
         audio,
         sr=sr,
     )
 
-    all_features = {
+    # Fixed-length DWT features
+    wavelet_features = extract_wavelet_features(audio)
+
+    # Aggregate frame-level features
+    aggregated = aggregate_features({
         **time_features,
         **spectral_features,
+    })
+
+    # DWT statistics are already fixed-length
+    duplicate_names = set(aggregated) & set(wavelet_features)
+
+    if duplicate_names:
+        raise ValueError(
+            f"Duplicate feature names: {duplicate_names}"
+        )
+
+    return {
+        **aggregated,
+        **wavelet_features,
     }
 
-    if len(all_features) != (
-        len(time_features) + len(spectral_features)
-    ):
-        raise ValueError("Duplicate feature names detected")
-
-    return aggregate_features(all_features)
 
 
 def main():
@@ -93,7 +108,7 @@ def main():
     ]
 
     assert len(feature_df) == 1440
-    assert len(feature_columns) == 28
+    assert len(feature_columns) == 48
 
     assert np.isfinite(
         feature_df[feature_columns].to_numpy()
@@ -104,7 +119,7 @@ def main():
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    output_path = OUTPUT_DIR / "time_spectral_features.csv"
+    output_path = OUTPUT_DIR / "handcrafted_features.csv"
     feature_df.to_csv(output_path, index=False)
 
     print("Recordings processed:", len(feature_df))
