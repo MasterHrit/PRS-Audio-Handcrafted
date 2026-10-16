@@ -1,25 +1,47 @@
-# Python
-__pycache__/
-*.pyc
+
+# Python environments and caches
 .venv/
 venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environment variables and secrets
 .env
+.env.*
+!.env.example
 
 # Jupyter
 .ipynb_checkpoints/
 
-# Raw datasets and generated outputs
+# Raw and external datasets
 data/raw/
 data/processed/
+data/external/
+
+# Generated feature matrices and model artifacts
 outputs/features/
 outputs/models/
 
 # Large model files
 *.pt
 *.pth
+*.ckpt
 *.h5
+*.hdf5
+*.onnx
 
-# Editor and OS
+# Temporary and local files
+project_tree.txt
+*.log
+*.tmp
+
+# Editor and operating system
 .vscode/
+.idea/
 .DS_Store
 Thumbs.db
+desktop.ini

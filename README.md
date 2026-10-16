@@ -163,31 +163,102 @@ Saved to `outputs/features/time_spectral_features.csv`.
 - All 28 feature columns have nonzero variance.
 - Training/validation/test sample counts verified.
 
-## 7. Planned Work
+## Wavelet Feature Extraction
 
-### Day 3 — Wavelet Feature Extraction
+Discrete Wavelet Transform (DWT) features are extracted using the Daubechies-4 (`db4`) wavelet with four decomposition levels.
 
-- Implement Discrete Wavelet Transform (DWT).
-- Extract wavelet subband statistics.
-- Combine DWT features with the existing time-domain and spectral representations.
+Five coefficient groups are analyzed: A4, D4, D3, D2 and D1.
 
-### Day 4 — Feature Analysis and Classification
+For each group, mean, variance, mean squared energy and Shannon entropy are calculated, producing 20 DWT features.
 
-- Compare handcrafted feature groups.
-- Train SVM and MLP classifiers.
-- Evaluate using validation Macro-F1 and supporting classification metrics.
+The complete handcrafted representation contains:
 
-### Day 5 — Final Handcrafted Evaluation
+| Feature group | Dimensions |
+|---|---:|
+| Time-domain | 12 |
+| Spectral | 16 |
+| DWT | 20 |
+| **Total** | **48** |
 
-- Finalize handcrafted feature representation.
-- Evaluate the selected classifier.
-- Save model artifacts and experimental results.
+Training-set correlation analysis identified near-perfect correlations between DWT variance and mean squared energy within each coefficient group. A reduced 43-dimensional representation was therefore included in the classification experiments.
 
-### Days 6–7 — Audio Feature Fusion
+## Handcrafted Classification
 
-- Integrate selected deep-learned audio features from Member 2.
-- Train a feature-concatenation MLP classifier.
-- Compare handcrafted-only, learned-only and combined representations.
+Five handcrafted feature configurations were evaluated using SVM and MLP classifiers on actor-independent training and validation partitions.
+
+| Representation | Best classifier | Validation Macro-F1 |
+|---|---|---:|
+| Time-domain (12D) | SVM | 0.3334 |
+| Spectral (16D) | SVM | 0.2699 |
+| DWT (20D) | MLP | 0.2429 |
+| Full handcrafted (48D) | MLP | **0.3518** |
+| Reduced handcrafted (43D) | SVM | 0.3408 |
+
+Feature scaling was fitted on the training partition only.
+
+## Deep-Learned Audio Feature Integration
+
+Member 2 supplied 128-dimensional pooled representations from a Transformer-based audio encoder.
+
+All 1,440 recordings were matched between the handcrafted and deep-learned representations using recording identifiers. Actor assignments, emotion labels and train/validation/test partitions were verified for consistency.
+
+The following representations were evaluated:
+
+- Transformer-only: 128 dimensions
+- Handcrafted + Transformer: 176 dimensions
+- Reduced handcrafted + Transformer: 171 dimensions
+
+The downstream classifier was an MLP trained on frozen feature representations.
+
+## Audio Fusion Validation Results
+
+| Representation | Accuracy | Macro-F1 |
+|---|---:|---:|
+| Transformer-only | 43.75% | 0.3964 |
+| Handcrafted + Transformer | **47.92%** | **0.4565** |
+| Reduced handcrafted + Transformer | 47.92% | 0.4514 |
+
+The full handcrafted + Transformer representation achieved the highest validation Macro-F1.
+
+## Final Held-Out Test Results
+
+The selected models were evaluated on 240 recordings from four previously unseen actors (02, 03, 08 and 17).
+
+| Representation | Accuracy | Macro-F1 | Weighted-F1 |
+|---|---:|---:|---:|
+| Handcrafted-only | 35.42% | 0.3500 | 0.3512 |
+| Transformer-only | 54.58% | 0.5151 | 0.5341 |
+| **Handcrafted + Transformer** | **57.50%** | **0.5445** | **0.5683** |
+
+The fused representation improved test Macro-F1 by approximately 0.0293 over Transformer-only and 0.1944 over handcrafted-only.
+
+These results are based on a single actor-independent partition and do not establish statistical significance across different actor splits.
+
+## Model Artifacts
+
+Trained models are stored in `outputs/models/`:
+
+- `handcrafted_only.joblib`
+- `transformer_only.joblib`
+- `handcrafted_transformer.joblib`
+
+Each artifact contains the fitted scaling/classification pipeline, expected feature-column order and emotion label mapping.
+
+The fused classifier requires both handcrafted features and the corresponding Transformer embeddings. The `.joblib` artifact alone does not extract Transformer features from raw audio.
+
+## Evaluation Outputs
+
+Evaluation files are stored under `outputs/metrics/` and `outputs/figures/`.
+
+These include validation comparisons, final test metrics, per-class classification reports, confusion matrices and sample-level predictions.
+
+## Limitations
+
+- Results were obtained from one fixed actor-independent train/validation/test partition.
+- The MLP's internal early-stopping subset was not actor-group-aware.
+- The deep-learned audio encoder was provided by Member 2 and treated as frozen.
+- No statistical significance testing across multiple actor partitions was performed.
+- Final results should be interpreted as experimental findings on the RAVDESS speech subset, not guaranteed real-world emotion-recognition performance.
 
 ## 8. Current Implementation Status
 
@@ -199,9 +270,9 @@ Saved to `outputs/features/time_spectral_features.csv`.
 | Time-domain feature extraction | Completed |
 | Spectral feature extraction | Completed |
 | Fixed-length feature aggregation | Completed |
-| DWT feature extraction | Planned |
-| Handcrafted classification | Planned |
-| Handcrafted + deep feature fusion | Planned |
+| DWT feature extraction | Completed |
+| Handcrafted classification | Completed |
+| Handcrafted + deep feature fusion | Completed |
 
 ## 9. Notes
 
