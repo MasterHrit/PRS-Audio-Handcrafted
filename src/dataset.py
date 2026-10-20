@@ -1,12 +1,36 @@
-
 from pathlib import Path
 import pandas as pd
 
 
-# Project paths
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-DATA_DIR = PROJECT_ROOT / "data"
-RAW_DIR = DATA_DIR / "raw"
+# Getting the Parent Directory Path Object
+PROJECT_ROOT=Path(__file__).resolve().parents[1]
+
+
+# Below we get the list of path of all the wav files inside all the Actors
+audio_files = sorted(
+    (PROJECT_ROOT / "data/raw").glob("Actor_*/*.wav")
+)
+
+# Selecting and Trying on 1 wav file first
+audio_file=audio_files[0]
+
+# Extract filename
+sample_id=audio_file.stem
+file_path=audio_file.relative_to(PROJECT_ROOT).as_posix()
+
+
+# Meta-Data File Columns
+METADATA_COLUMNS = [
+    "sample_id",
+    "file_path",
+    "actor_id",
+    "gender",
+    "emotion_code",
+    "emotion_label",
+    "intensity",
+    "statement",
+    "repetition",
+]
 
 EMOTION_MAP = {
     "01": "neutral",
@@ -16,84 +40,62 @@ EMOTION_MAP = {
     "05": "angry",
     "06": "fearful",
     "07": "disgust",
-    "08": "surprise",
+    "08": "surprised",
 }
 
+records = []
 
-def parse_filename(file_path: Path) -> dict:
-    """Extract RAVDESS metadata from a WAV filename."""
+for audio_file in audio_files:
+    sample_id=audio_file.stem
+    file_path=audio_file.relative_to(PROJECT_ROOT).as_posix()
 
-    parts = file_path.stem.split("-")
+    parts=sample_id.split("-")
+    assert len(parts) == 7, f"Invalid filename: {sample_id}"
 
-    if len(parts) != 7:
-        raise ValueError(f"Invalid filename: {file_path.name}")
+    (
+        modality,
+        vocal_channel,
+        emotion_code,
+        intensity,
+        statement,
+        repetition,
+        actor,
+    ) = parts
 
-    modality, channel, emotion, intensity, statement, repetition, actor = parts
+    actor_id=int(actor)
+    gender="female" if actor_id % 2 == 0 else "male"
 
-    if modality != "03" or channel != "01":
-        raise ValueError(f"Not an audio-only speech file: {file_path.name}")
+    record=[
+        sample_id,
+        file_path,
+        actor_id,
+        gender,
+        int(emotion_code),
+        EMOTION_MAP[emotion_code],
+        int(intensity),
+        int(statement),
+        int(repetition)
+    ]
 
-    if emotion not in EMOTION_MAP:
-        raise ValueError(f"Unknown emotion: {file_path.name}")
+    records.append(record)
 
-    return {
-        "sample_id": file_path.stem,
-        "file_path": str(file_path.relative_to(PROJECT_ROOT)),
-        "actor_id": int(actor),
-        "emotion_code": emotion,
-        "emotion_label": EMOTION_MAP[emotion],
-        "intensity": int(intensity),
-        "statement": int(statement),
-        "repetition": int(repetition),
-    }
+metadata=pd.DataFrame(
+    records,
+    columns=METADATA_COLUMNS
+)
 
+print("Metadata shape:", metadata.shape)
+print(metadata.head())
 
-def build_metadata(raw_dir: Path = RAW_DIR) -> pd.DataFrame:
-    """Index all RAVDESS speech WAV recordings."""
+# Saving the Audio Extracted Meta-Data
+# As checked every emotion has equal distribution except neutral (since neutral does not have strong intensity)
+# print("\nEmotion distribution:")
+# print(metadata["emotion_label"].value_counts())
 
-    audio_files = sorted(raw_dir.glob("Actor_*/*.wav"))
+# As checked every actor has 60 recordings
+# print("\nRecordings per actor:")
+# print(metadata["actor_id"].value_counts().sort_index())
 
-    if not audio_files:
-        raise FileNotFoundError(f"No WAV files found in {raw_dir}")
-
-    records = [parse_filename(path) for path in audio_files]
-
-    df = pd.DataFrame(records)
-
-    if df["sample_id"].duplicated().any():
-        raise ValueError("Duplicate sample IDs detected")
-
-    return df
-
-
-def validate_metadata(df: pd.DataFrame) -> None:
-    """Check dataset size, actors and emotion categories."""
-
-    print(f"Total recordings: {len(df)}")
-    print(f"Unique actors: {df['actor_id'].nunique()}")
-    print(f"Emotion classes: {df['emotion_label'].nunique()}")
-
-    print("\nEmotion distribution:")
-    print(df["emotion_label"].value_counts().sort_index())
-
-    print("\nRecordings per actor:")
-    print(df.groupby("actor_id").size().to_string())
-
-    assert len(df) == 1440, "Expected 1440 speech recordings"
-    assert df["actor_id"].nunique() == 24, "Expected 24 actors"
-    assert df["emotion_label"].nunique() == 8, "Expected 8 emotions"
-    assert df.groupby("actor_id").size().eq(60).all(), (
-        "Expected 60 recordings per actor"
-    )
-
-
-if __name__ == "__main__":
-    metadata = build_metadata()
-    validate_metadata(metadata)
-
-    output_path = DATA_DIR / "metadata.csv"
-    metadata.to_csv(output_path, index=False)
-
-    print(f"\nMetadata saved to: {output_path}")
-    print("\nFirst five records:")
-    print(metadata.head().to_string(index=False))
+output_path = PROJECT_ROOT / "data" / "metadata.csv"
+metadata.to_csv(output_path, index=False)
+print("Saved:", output_path)

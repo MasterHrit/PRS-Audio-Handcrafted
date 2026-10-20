@@ -5,9 +5,9 @@ import numpy as np
 import pandas as pd
 
 from preprocessing import preprocess_audio
-from time_features import extract_time_features
-from spectral_features import extract_spectral_features
-from wavelet_features import extract_wavelet_features
+from baseline_v1.time_features import extract_time_features
+from baseline_v1.spectral_features import extract_spectral_features
+from baseline_v1.wavelet_features import extract_wavelet_features
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
