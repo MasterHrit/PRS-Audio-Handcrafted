@@ -17,7 +17,8 @@ The work includes:
 - Comparison of 30 preprocessing configurations
 - Evaluation of nine machine learning classifiers
 - Hyperparameter tuning of five shortlisted classifiers
-- Preparation for fusion with M2's deep-learned audio features
+- Comparison of M1 48D, M2 128D, and combined 176D audio representations
+- Export of aligned M1 features, actor-independent OOF probabilities, and fitted classifier for M5
 
 The repository maintains two implementations:
 
@@ -73,41 +74,39 @@ This produces **30 combined 48D datasets**.
 ```text
 M1_Audio_Handcrafted/
 ├── data/
-│   ├── raw/
 │   ├── metadata.csv
 │   ├── actor_splits.csv
-│   └── audio_splits.csv
-│
+│   ├── audio_splits.csv
+│   ├── raw/                         # Local, not tracked
+│   └── external/                    # M2-provided files, not tracked
 ├── src/
 │   ├── dataset.py
 │   ├── split_dataset.py
 │   ├── preprocessing.py
 │   ├── baseline_v1/
 │   ├── experimental_v2/
-│   └── experiments/
-│       ├── compare_preprocessing.py
-│       ├── tuning_utils.py
-│       ├── tune_logistic_regression.py
-│       ├── tune_mlp.py
-│       ├── tune_svc.py
-│       ├── tune_xgboost.py
-│       └── tune_random_forest.py
-│
+│   ├── experiments/
+│   ├── fusion/
+│   │   ├── prepare_audio_features.py
+│   │   ├── compare_audio_representations.py
+│   │   └── tune_audio_representations.py
+│   └── handover/
+│       └── export_m1_audio.py
 ├── notebooks/
+│   ├── baseline_v1/
+│   └── experimental_v2/
 ├── docs/
 ├── outputs/
-│   ├── features/
-│   │   ├── baseline_v1/
-│   │   └── experimental_v2/
+│   ├── features/                    # Generated locally
 │   ├── metrics/
-│   └── figures/
-│
+│   ├── figures/
+│   └── handover/m1_audio/
 ├── pyproject.toml
 ├── uv.lock
 └── README.md
 ```
 
-Generated outputs and raw recordings may be excluded from version control.
+Raw recordings, external M2 artifacts, and generated feature matrices are excluded from Git. The handover directory contains the M1 export artifacts selected for sharing.
 
 ## 5. Installation
 
@@ -197,40 +196,69 @@ This is the highest observed validation Macro-F1 from the current handcrafted cl
 
 The validation results are exploratory because the same validation partition was used during preprocessing selection. Final model evaluation remains pending.
 
-## 8. Documentation
+## 8. M1–M2 Audio Feature Comparison
 
-Detailed methodology and experimental findings are available in:
+The M1 handcrafted representation was aligned with M2's exported 128D pooled audio features using recording identifiers, actor IDs, emotion labels, and split assignments. All 1,440 recordings matched.
 
-| Document | Description |
+The same `StandardScaler` + Logistic Regression pipeline was trained separately on each representation (960 training recordings) and evaluated on the same 240 validation recordings.
+
+| Representation | Dimensions | Default Val Macro-F1 | CV-tuned Val Macro-F1 |
+|---|---:|---:|---:|
+| Handcrafted (M1) | 48 | 0.3885 | 0.3898 |
+| Deep-learned (M2) | 128 | **0.4734** | 0.4262 |
+| Concatenated (M1 + M2) | 176 | 0.4518 | 0.4492 |
+
+Simple feature concatenation did not outperform the strongest deep-only validation result. These are downstream Logistic Regression experiments and are **not** M2's original WavLM classifier results.
+
+Run the comparison after generating the M1 and M2 input features:
+
+```bash
+uv run --locked python -m src.fusion.prepare_audio_features
+uv run --locked python -m src.fusion.compare_audio_representations
+uv run --locked python -m src.fusion.tune_audio_representations
+```
+
+The feature-alignment script expects M2's pooled CSV exports under `data/external/m2_audio/pooled/` and M1's selected combined dataset under `outputs/features/experimental_v2/combined/db2/`.
+
+## 9. M5 Audio Handover
+
+The selected M1 handover classifier is the default Logistic Regression pipeline (`C=1.0`) using the 48D db2 / normalized / 20 ms representation.
+
+The export produces partitioned 48D feature CSVs, eight-class probability CSVs, a fitted `logistic_regression.joblib` pipeline, and `metadata.json` under `outputs/handover/m1_audio/`.
+
+- **Training probabilities:** Four-fold actor-independent out-of-fold predictions.
+- **Validation probabilities:** Predictions from a model fitted on all 960 training recordings.
+- **Test probabilities:** Generated separately and reserved for final evaluation; do not use for fusion-model selection.
+- **Alignment:** Use `trial_id` and verify actor, split, and emotion consistency. The canonical M1 label is `surprised` (RAVDESS code 08).
+
+Regenerate the handover after the selected 48D feature dataset is available:
+
+```bash
+uv run --locked python -m src.handover.export_m1_audio
+```
+
+## 10. Documentation
+
+| Document | Contents |
 |---|---|
-| [Handcrafted Feature Pipeline](docs/01_handcrafted_feature_pipeline.md) | Dataset, preprocessing, feature extraction, and execution |
-| [Preprocessing and Classifier Comparison](docs/02_preprocessing_and_classifier_comparison.md) | Initial 270 experiments and classifier shortlist |
-| [Hyperparameter Tuning Results](docs/03_hyperparameter_tuning_results.md) | Five-model tuning and default-versus-tuned evaluation |
+| [01 — Handcrafted Feature Pipeline](docs/01_handcrafted_feature_pipeline.md) | Data preparation, preprocessing, feature extraction |
+| [02 — Preprocessing and Classifier Comparison](docs/02_preprocessing_and_classifier_comparison.md) | Nine classifiers across 30 configurations |
+| [03 — Hyperparameter Tuning Results](docs/03_hyperparameter_tuning_results.md) | Five tuned classifiers and default comparison |
+| [04 — Audio Feature Fusion Comparison](docs/04_audio_feature_fusion_comparison.md) | M1 48D vs M2 128D vs combined 176D |
+| [05 — M1 Audio Handover](docs/05_m1_audio_handover.md) | Export schema, OOF probabilities, model and integration guidance |
 
-The `notebooks/` directory contains supporting exploratory analysis, comparisons, and visualizations.
-
-## 9. Current Status
+## 11. Current Status
 
 | Component | Status |
 |---|---|
-| Dataset preparation and actor splitting | Complete |
-| Baseline V1 feature extraction | Complete |
-| Experimental V2 feature extraction | Complete |
-| Preprocessing validation | Complete |
-| 30 preprocessing configurations | Complete |
-| Nine-classifier comparison | Complete |
+| Actor-independent data preparation and preprocessing | Complete |
+| Baseline V1 and Experimental V2 feature extraction | Complete |
+| 30 preprocessing configurations and nine-classifier comparison | Complete |
 | Five-classifier hyperparameter tuning | Complete |
-| Comparative documentation | Complete |
-| Feature ablation | Planned |
-| M1 + M2 deep-feature comparison | Planned |
-| M5 fusion handover | Planned |
+| M1–M2 recording alignment and audio representation comparison | Complete |
+| M1 feature, probability, model and metadata export for M5 | Complete |
+| Experimental and handover documentation | Complete |
 
-## 10. Next Steps
+## 12. Evaluation Notes
 
-1. Finalize the handcrafted feature representation and classifier.
-2. Perform feature ablation experiments.
-3. Align M1's 48D handcrafted features with M2's 128D deep-learned representations.
-4. Compare handcrafted-only, deep-only, and concatenated audio representations.
-5. Prepare aligned features and classifier probabilities for M5's multimodal fusion experiments.
-
-The held-out test partition should remain untouched until the final evaluation protocol is established.
+The reported validation scores are exploratory: preprocessing and model selection used the designated validation actors. Cross-validation of already exported M2 features is not end-to-end cross-validation of the upstream deep model. The held-out test partition should not be used for further model selection or tuning.

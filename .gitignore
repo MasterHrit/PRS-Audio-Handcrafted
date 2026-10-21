@@ -47,3 +47,6 @@ project_tree.txt
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Archive
+archive/
