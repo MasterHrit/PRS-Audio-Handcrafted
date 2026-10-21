@@ -1,7 +1,10 @@
 from pathlib import Path
 import numpy as np
 import librosa
-from validation import validate_resampling,validate_trimming
+from src.experimental_v2.validation import (
+    validate_resampling,
+    validate_trimming,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]

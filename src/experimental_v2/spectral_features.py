@@ -1,16 +1,18 @@
 
 from pathlib import Path
 
-from time_features import frame_audio, summarize_feature
+from src.experimental_v2.time_features import (
+    frame_audio,
+    summarize_feature,
+)
 
 import numpy as np
 import librosa
 
-from preprocessing import preprocess_audio
-from time_features import frame_audio
+from src.preprocessing import preprocess_audio
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 SAMPLE_RATE = 16000
 DEFAULT_FRAME_MS = 25

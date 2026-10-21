@@ -4,14 +4,14 @@ from pathlib import Path
 import numpy as np
 import librosa
 
-from preprocessing import preprocess_audio
+from src.preprocessing import preprocess_audio
 
 
 SAMPLE_RATE = 16000
 FRAME_LENGTH = 400
 HOP_LENGTH = 160
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def extract_spectral_features(

@@ -4,13 +4,18 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from preprocessing import preprocess_audio
-from wavelet_features import extract_wavelet_features, WAVELETS
+from src.preprocessing import preprocess_audio
+from src.experimental_v2.wavelet_features import (
+    extract_wavelet_features,
+    WAVELETS,
+)
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 METADATA_PATH = PROJECT_ROOT / "data/audio_splits.csv"
-OUTPUT_DIR = PROJECT_ROOT / "outputs/features/dwt"
+OUTPUT_DIR = (
+    PROJECT_ROOT / "outputs/features/experimental_v2/dwt"
+)
 
 METADATA_COLUMNS = [
     "sample_id",

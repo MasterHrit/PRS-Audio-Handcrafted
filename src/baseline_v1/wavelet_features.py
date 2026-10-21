@@ -4,10 +4,10 @@ from pathlib import Path
 import numpy as np
 import pywt
 
-from preprocessing import preprocess_audio
+from src.preprocessing import preprocess_audio
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 WAVELET = "db4"
 DWT_LEVEL = 4

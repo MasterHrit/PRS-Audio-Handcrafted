@@ -3,11 +3,11 @@ from pathlib import Path
 
 import pandas as pd
 
-from preprocessing import preprocess_audio
-from validation import validate_preprocessing_dataset
+from src.preprocessing import preprocess_audio
+from src.experimental_v2.validation import validate_preprocessing_dataset
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 metadata = pd.read_csv(
     PROJECT_ROOT / "data/metadata.csv"

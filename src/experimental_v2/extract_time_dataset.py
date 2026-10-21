@@ -4,14 +4,17 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 
-from preprocessing import preprocess_audio
-from time_features import extract_time_features
+from src.preprocessing import preprocess_audio
+from src.experimental_v2.time_features import extract_time_features
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 METADATA_PATH = PROJECT_ROOT / "data/audio_splits.csv"
-OUTPUT_DIR = PROJECT_ROOT / "outputs/features/time"
+FEATURE_DIR = (
+    PROJECT_ROOT / "outputs/features/experimental_v2"
+)
+OUTPUT_DIR = FEATURE_DIR / "time"
 
 
 def extract_dataset(metadata, normalize, frame_ms):

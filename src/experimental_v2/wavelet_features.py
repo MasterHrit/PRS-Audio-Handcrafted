@@ -4,11 +4,10 @@ from pathlib import Path
 import numpy as np
 import pywt
 
-from preprocessing import preprocess_audio
+from src.preprocessing import preprocess_audio
+from src.experimental_v2.time_features import summarize_feature
 
-from time_features import summarize_feature
-
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 WAVELETS = ("haar", "db2", "db4", "sym4", "db8")
 DEFAULT_WAVELET = "db4"

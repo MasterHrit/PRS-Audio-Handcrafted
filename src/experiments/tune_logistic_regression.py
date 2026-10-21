@@ -1,175 +1,174 @@
 
-from pathlib import Path
-
-import numpy as np
 import pandas as pd
 
-from sklearn.pipeline import Pipeline
+from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import GridSearchCV, StratifiedGroupKFold
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.model_selection import GridSearchCV
 
-
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-
-DATASET_PATH = (
-    PROJECT_ROOT
-    / "outputs/features/combined/db2/combined_norm_20ms.csv"
+from src.experiments.tuning_utils import (
+    load_dataset,
+    create_cv,
+    evaluate_model,
+    save_search_results,
+    RANDOM_STATE,
 )
 
-OUTPUT_DIR = PROJECT_ROOT / "outputs/metrics"
 
-METADATA_COLUMNS = [
-    "sample_id",
-    "actor_id",
-    "emotion_label",
-    "split",
-]
+def main():
 
-RANDOM_STATE = 42
+    # 1. Load selected dataset
+    X_train, y_train, X_val, y_val, groups = load_dataset(
+        wavelet="db2",
+        normalization="norm",
+        frame_ms=20,
+    )
 
+    # 2. Define classifier pipeline
+    model = make_pipeline(
+        StandardScaler(),
+        LogisticRegression(
+            max_iter=3000,
+            random_state=RANDOM_STATE,
+        ),
+    )
 
-def tune_logistic_regression():
+    # 3. Hyperparameter search space
+    
+    param_grid = [
+        # L2 regularization
+        {
+            "logisticregression__solver": [
+                "lbfgs",
+                "newton-cg",
+            ],
+            "logisticregression__C": [
+                0.001, 0.01, 0.05, 0.1,
+                0.5, 1.0, 2.0, 5.0,
+                10.0, 100.0,
+            ],
+            "logisticregression__l1_ratio": [0.0],
+            "logisticregression__class_weight": [
+                None, "balanced"
+            ],
+        },
 
-    # 1. Load dataset
-    dataset = pd.read_csv(DATASET_PATH)
-
-    feature_columns = [
-        col for col in dataset.columns
-        if col not in METADATA_COLUMNS
+        # L1 and Elastic Net regularization
+        {
+            "logisticregression__solver": ["saga"],
+            "logisticregression__C": [
+                0.01, 0.1, 0.5, 1.0, 5.0, 10.0,
+            ],
+            "logisticregression__l1_ratio": [
+                0.25, 0.5, 0.75, 1.0,
+            ],
+            "logisticregression__class_weight": [
+                None, "balanced"
+            ],
+        },
     ]
 
-    # 2. Separate training and validation
-    train_df = dataset[dataset["split"] == "train"]
-    val_df = dataset[dataset["split"] == "val"]
 
-    X_train = train_df[feature_columns]
-    y_train = train_df["emotion_label"]
-    groups = train_df["actor_id"]
+    # 4. Actor-independent cross-validation
+    cv = create_cv()
 
-    X_val = val_df[feature_columns]
-    y_val = val_df["emotion_label"]
-
-    # Basic checks
-    assert len(feature_columns) == 48
-    assert len(train_df) == 960
-    assert len(val_df) == 240
-
-    assert set(train_df["actor_id"]).isdisjoint(
-        set(val_df["actor_id"])
-    )
-
-    assert np.isfinite(X_train.to_numpy()).all()
-    assert np.isfinite(X_val.to_numpy()).all()
-
-    # 3. Define pipeline
-    pipeline = Pipeline([
-        ("scaler", StandardScaler()),
-        ("logisticregression", LogisticRegression(
-            max_iter=2000,
-            random_state=RANDOM_STATE,
-        )),
-    ])
-
-    # 4. Hyperparameter grid
-    param_grid = {
-        "logisticregression__C": [
-            0.001,
-            0.01,
-            0.1,
-            1.0,
-            10.0,
-            100.0,
-        ],
-    }
-
-    # 5. Actor-independent cross-validation
-    cv = StratifiedGroupKFold(
-        n_splits=4,
-        shuffle=True,
-        random_state=RANDOM_STATE,
-    )
-
-    # 6. Grid search
+    # 5. Grid search
     search = GridSearchCV(
-        estimator=pipeline,
+        estimator=model,
         param_grid=param_grid,
-        scoring="f1_macro",
+        scoring={
+            "macro_f1": "f1_macro",
+            "accuracy": "accuracy",
+        },
+        refit="macro_f1",
         cv=cv,
-        n_jobs=2,
+        n_jobs=-1,
         verbose=1,
-        refit=True,
         return_train_score=True,
+        error_score="raise",
     )
 
-    # 7. Train using training actors only
+    # 6. Train and tune using training actors only
     search.fit(
         X_train,
         y_train,
         groups=groups,
     )
 
-    # 8. Best CV results
+    # 7. Best hyperparameters
     print("\nBest CV Macro-F1:", search.best_score_)
     print("Best hyperparameters:", search.best_params_)
 
-    # 9. Evaluate on validation actors
+    # 8. Evaluate on designated validation actors
     best_model = search.best_estimator_
 
-    train_pred = best_model.predict(X_train)
-    val_pred = best_model.predict(X_val)
-
-    train_macro_f1 = f1_score(
+    metrics = evaluate_model(
+        best_model,
+        X_train,
         y_train,
-        train_pred,
-        average="macro",
-        zero_division=0,
-    )
-
-    val_accuracy = accuracy_score(y_val, val_pred)
-
-    val_macro_f1 = f1_score(
+        X_val,
         y_val,
-        val_pred,
-        average="macro",
-        zero_division=0,
     )
 
-    print("\nTraining Macro-F1:", train_macro_f1)
-    print("Validation Accuracy:", val_accuracy)
-    print("Validation Macro-F1:", val_macro_f1)
+    print("\nEvaluation metrics:")
+    for name, value in metrics.items():
+        print(f"{name}: {value:.4f}")
 
-    # 10. Save all hyperparameter results
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    # 9. Save complete search history
+    output_dir = save_search_results(
+        search,
+        model_name="logistic_regression",
+    )
 
+    # 10. Save best configuration summary
+    best_idx = search.best_index_
+
+    summary = {
+        "classifier": "Logistic Regression",
+        "wavelet": "db2",
+        "normalization": "norm",
+        "frame_ms": 20,
+        "best_cv_macro_f1": search.best_score_,
+        "cv_macro_f1_std": search.cv_results_[
+            "std_test_macro_f1"
+        ][best_idx],
+        "cv_accuracy": search.cv_results_[
+            "mean_test_accuracy"
+        ][best_idx],
+        "cv_train_macro_f1": search.cv_results_[
+            "mean_train_macro_f1"
+        ][best_idx],
+        "best_params": str(search.best_params_),
+        **metrics,
+    }
+
+    pd.DataFrame([summary]).to_csv(
+        output_dir / "logistic_regression_summary.csv",
+        index=False,
+    )
+
+    # 11. Display top configurations
     results_df = pd.DataFrame(search.cv_results_)
 
-    output_path = (
-        OUTPUT_DIR / "logreg_grid_search_results.csv"
-    )
-
-    results_df.to_csv(output_path, index=False)
-
-    # 11. Display all six configurations
     columns = [
-        "rank_test_score",
+        "rank_test_macro_f1",
         "param_logisticregression__C",
-        "mean_train_score",
-        "mean_test_score",
-        "std_test_score",
+        "mean_train_macro_f1",
+        "mean_test_macro_f1",
+        "std_test_macro_f1",
+        "mean_test_accuracy",
     ]
 
     print("\nLogistic Regression hyperparameter comparison:")
 
     print(
         results_df[columns]
-        .sort_values("rank_test_score")
+        .sort_values("rank_test_macro_f1")
         .to_string(index=False)
     )
 
-    print("\nSaved:", output_path)
+    print("\nSaved:", output_dir)
 
 
 if __name__ == "__main__":
-    tune_logistic_regression()
+    main()

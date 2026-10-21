@@ -20,11 +20,13 @@ __pycache__/
 # Raw and external datasets
 data/raw/
 data/processed/
-data/external/
+# data/external/
+data/baseline_v1
 
 # Generated feature matrices and model artifacts
-outputs/features/
+# outputs/features/
 outputs/models/
+outputs/handover.zip
 
 # Large model files
 *.pt

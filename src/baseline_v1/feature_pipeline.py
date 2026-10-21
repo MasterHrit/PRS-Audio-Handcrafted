@@ -4,15 +4,17 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from preprocessing import preprocess_audio
-from baseline_v1.time_features import extract_time_features
-from baseline_v1.spectral_features import extract_spectral_features
-from baseline_v1.wavelet_features import extract_wavelet_features
+from src.preprocessing import preprocess_audio
+from src.baseline_v1.time_features import extract_time_features
+from src.baseline_v1.spectral_features import extract_spectral_features
+from src.baseline_v1.wavelet_features import extract_wavelet_features
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = PROJECT_ROOT / "data"
-OUTPUT_DIR = PROJECT_ROOT / "outputs" / "features"
+OUTPUT_DIR = (
+    PROJECT_ROOT / "outputs/features/baseline_v1"
+)
 
 
 def aggregate_features(features: dict) -> dict:
@@ -76,14 +78,25 @@ def extract_recording_features(file_path: Path) -> dict:
     }
 
 
-
 def main():
     metadata = pd.read_csv(DATA_DIR / "audio_splits.csv")
+
+    # Create modality-independent trial IDs
+    metadata["trial_id"] = (
+        metadata["sample_id"]
+        .str.split("-", n=1)
+        .str[1]
+    )
 
     records = []
 
     for _, row in metadata.iterrows():
-        file_path = PROJECT_ROOT / row["file_path"]
+        file_path = (
+            PROJECT_ROOT
+            / "data/raw"
+            / f"Actor_{int(row['actor_id']):02d}"
+            / f"{row['sample_id']}.wav"
+        )
 
         features = extract_recording_features(file_path)
 
@@ -122,13 +135,12 @@ def main():
     output_path = OUTPUT_DIR / "handcrafted_features.csv"
     feature_df.to_csv(output_path, index=False)
 
+    print("\nBaseline feature extraction completed!")
     print("Recordings processed:", len(feature_df))
     print("Features per recording:", len(feature_columns))
     print("Feature matrix shape:", feature_df[feature_columns].shape)
-    print("Output:", output_path)
-
-    print("\nSample features:")
-    print(feature_df.head().to_string(index=False))
+    print("Dataset shape:", feature_df.shape)
+    print("Saved:", output_path)
 
 
 if __name__ == "__main__":

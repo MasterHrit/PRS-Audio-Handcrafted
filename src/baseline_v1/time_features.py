@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import librosa
 
-from preprocessing import preprocess_audio
+from src.preprocessing import preprocess_audio
 
 
 # Configuration
@@ -12,7 +12,7 @@ SAMPLE_RATE = 16000
 FRAME_LENGTH = 400  # 25 ms
 HOP_LENGTH = 160     # 10 ms
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def extract_time_features(

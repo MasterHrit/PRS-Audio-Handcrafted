@@ -5,9 +5,9 @@ import numpy as np
 import pandas as pd
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
-FEATURE_DIR = PROJECT_ROOT / "outputs/features"
+FEATURE_DIR = PROJECT_ROOT / "outputs/features/experimental_v2"
 OUTPUT_DIR = FEATURE_DIR / "combined"
 
 WAVELETS = ("haar", "db2", "db4", "sym4", "db8")

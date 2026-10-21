@@ -10,7 +10,7 @@ import librosa
 
 
 from pathlib import Path
-from preprocessing import preprocess_audio
+from src.preprocessing import preprocess_audio
 
 SAMPLE_RATE = 16000
 DEFAULT_FRAME_MS = 25
@@ -112,7 +112,7 @@ def extract_time_features(
 
     return features
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 if __name__ == "__main__":
